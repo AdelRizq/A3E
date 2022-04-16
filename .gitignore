@@ -1,0 +1,6 @@
+/lex-yacc-examples
+*.C
+*.h
+*.exe 
+/.vscode
+*.pdf
