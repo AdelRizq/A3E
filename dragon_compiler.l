@@ -1,49 +1,56 @@
 %{
     #include <stdio.h>
+    #include <stdlib.h>
+    #include "dragon_compiler.tab.h"
 %}
 
 %% 
 
-
-[a-zA-Z_][a-zA-Z0-9_]* { 
-    /* VARIABLES - IDENTIFIERS*/
-    printf("Variable: %s\n", yytext);
-    // yylval.iValue = yytext;
-    // return VARIABLE; 
-} 
-    
-[0-9]+ { 
-    /* CONSTANTS - NUMBERS*/
-    printf("Number: %s\n", yytext); 
+-?[0-9]+ { 
+    printf("Integer: %s\n", yytext); 
     // yylval.iValue = atoi(yytext); 
-    // return NUMBER; 
+    return INTEGER; 
+}
+
+(true|false) {
+    printf("Boolean: %s\n", yytext);
+    // yylval.iValue = atoi(yytext);
+    return BOOLEAN;
 }
 
 \"[^\"]*\" { 
-    /* STRINGS */
     printf("String: %s\n", yytext); 
     // yylval.iValue = yytext; 
-    // return STRING; 
+    return STRING; 
 }
+
+[a-zA-Z_][a-zA-Z0-9_]* { 
+    printf("Variable: %s\n", yytext);
+    // yylval.iValue = yytext;
+    return VARIABLE; 
+} 
 
 [+-/*] { 
-    /* MATHEMATICAL OPERATORS */
     printf("Operator: %s\n", yytext); 
     // return OPERATOR; 
+    return *yytext;
 }
 
-[()<>=;{}] { 
-    /* Brackets and others */
-    printf("Brackets, equal and semicolon: %s\n", yytext); 
+[()<>=;{}\n] { 
+    printf("Others: %s\n", yytext); 
     return *yytext; 
 }
 
-[ \t\n]* { 
-    /* Whitespace */
-    printf("Whitespaces: %s\n", yytext); 
+[ \t] { 
+    /* Skip Whitespaces and Tabs */
+    // printf("Whitespaces: %s\n", yytext); 
     // return *yytext; 
 }
 
+"!" return NOT;
+"^" return XOR;
+"||" return OR;
+"&&" return AND;
 
 %%
 
@@ -51,9 +58,3 @@ int yywrap(void) {
     printf("Exausted ya beh");
     return 1; 
 } 
-
-int main(int argc, char *argv[]) { 
-    yyin = fopen(argv[1], "r"); 
-    yylex(); 
-    fclose(yyin); 
-}
