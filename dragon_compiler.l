@@ -6,6 +6,22 @@
 
 %% 
 
+"if" return IF;
+"else" return ELSE;
+"endif" return ENDIF;
+
+"do" return DO;
+"for" return FOR;
+"while" return WHILE;
+
+"print" return PRINT; 
+
+"int" return INTTYPE;
+"const" return CONST;
+"bool" return BOOLTYPE;
+"string" return STRINGTYPE;
+
+
 -?[0-9]+ { 
     printf("Integer: %s\n", yytext); 
     // yylval.iValue = atoi(yytext); 
@@ -52,9 +68,14 @@
 "||" return OR;
 "&&" return AND;
 
+">=" return GE; 
+"<=" return LE; 
+"==" return EQ; 
+"!=" return NE;
+
 %%
 
 int yywrap(void) { 
-    printf("Exausted ya beh");
+    printf("Exhausted ya beh");
     return 1; 
 } 
