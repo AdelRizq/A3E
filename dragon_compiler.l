@@ -14,6 +14,11 @@
 "for" return FOR;
 "while" return WHILE;
 
+"case" return CASE;
+"break" return BREAK;
+"switch" return SWITCH;
+"default" return DEFAULT;
+
 "print" return PRINT; 
 
 "int" return INTTYPE;
@@ -52,7 +57,7 @@
     return *yytext;
 }
 
-[()<>=;{}\n] { 
+[()<>=;{}:\n] { 
     printf("Others: %s\n", yytext); 
     return *yytext; 
 }

@@ -5,6 +5,7 @@
 %token INTTYPE BOOLTYPE STRINGTYPE
 
 %token IF WHILE DO FOR PRINT
+%token SWITCH CASE DEFAULT BREAK 
 %nonassoc ENDIF 
 %nonassoc ELSE
 
@@ -41,12 +42,29 @@ statement:
     
     | IF '(' bool ')' statement %prec ENDIF 
     | IF '(' bool ')' statement ELSE statement 
+
+    | SWITCH '(' VARIABLE ')' '{' case_list '}'
+
     | '{' statement_list '}' { $$ = $2; }
     ; 
+
+case_list: 
+    case_list case_statement
+    | 
+    ;
+
+case_statement:
+    CASE case_switch_val ':' statement_list BREAK ';'
+    | DEFAULT ':' statement_list BREAK ';'
+    ;
+
+case_switch_val: 
+    INTEGER | STRING | BOOLEAN;
 
 statement_list: 
     statement { $$ = $1; } 
     | statement_list statement
+    |
     ;
 
 int_def:
