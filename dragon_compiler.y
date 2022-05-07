@@ -1,19 +1,25 @@
-%token INTEGER VARIABLE BOOLEAN STRING CONST
+%token INTEGER FLOAT VARIABLE BOOLEAN STRING CONST
 
 %token NOT AND OR XOR
 %token GE LE EQ NE '>' '<'
-%token INTTYPE BOOLTYPE STRINGTYPE
+%token INTTYPE BOOLTYPE STRINGTYPE FLOATTYPE
 
-%token IF WHILE DO FOR PRINT
+%token IF WHILE REPEAT UNTIL FOR PRINT
 %token SWITCH CASE DEFAULT BREAK 
+
 %nonassoc ENDIF 
 %nonassoc ELSE
 
+%right "="
 %left XOR
-%left AND OR
+%left OR
+%left AND
+%left EQ NE
+%left GE LE '>' '<'
 %left '+' '-'
-%left '*' '/'
-%left NOT
+%left '*' '/' '%'
+%right NOT
+
 
 %{ 
     #include <stdio.h>
@@ -25,28 +31,77 @@
 %%
 
 program: 
-    program statement '\n' 
-    | 
+    | statement_list
     ; 
+
+block: 
+    '{' '}'
+    | '{' statement_list '}'
+    ;
+    
+statement_list: 
+    statement 
+    | block
+    | statement_list statement
+    | statement_list block
+    ;
 
 statement: 
     PRINT expr ';' 
-    
-    | int_def ';'
-    | str_def ';'
-    | bool_def ';'
 
-    | WHILE '(' bool ')' statement 
-    | DO statement WHILE '(' bool ')' ';'
-    | FOR '(' int_def ';' VARIABLE '<' expr ';' VARIABLE '=' VARIABLE '+' INTEGER ')' statement
+    | var_definition ';'
+    | VARIABLE '=' expr ';'
+
+    | WHILE '(' expr ')' body 
+    | REPEAT body UNTIL '(' expr ')' ';'
+    | FOR for_header body
     
-    | IF '(' bool ')' statement %prec ENDIF 
-    | IF '(' bool ')' statement ELSE statement 
+    | IF '(' expr ')' body %prec ENDIF 
+    | IF '(' expr ')' body ELSE body 
+
+    | BREAK ';'
 
     | SWITCH '(' VARIABLE ')' '{' case_list '}'
 
-    | '{' statement_list '}' { $$ = $2; }
+    | ';'
     ; 
+
+body:
+    statement
+    | block
+    ; 
+
+for_header:
+    '(' for_var ';' for_cond ';' for_expr ')'
+
+type:
+    INTTYPE | BOOLTYPE | STRINGTYPE | FLOATTYPE
+
+value:
+    BOOLEAN | INTEGER | FLOAT | STRING
+
+var_definition:
+    type VARIABLE
+    | CONST type VARIABLE
+    | type VARIABLE '=' expr
+    | CONST type VARIABLE '=' expr
+    ;
+
+for_var:
+    var_definition
+    | VARIABLE '=' expr
+    |
+    ;
+
+for_cond:
+    expr
+    |
+    ;
+
+for_expr:
+    VARIABLE '=' expr
+    |
+    ;
 
 case_list: 
     case_list case_statement
@@ -54,63 +109,33 @@ case_list:
     ;
 
 case_statement:
-    CASE case_switch_val ':' statement_list BREAK ';'
-    | DEFAULT ':' statement_list BREAK ';'
+    CASE case_switch_val ':' body 
+    | DEFAULT ':' body 
     ;
 
 case_switch_val: 
     INTEGER | STRING | BOOLEAN;
 
-statement_list: 
-    statement { $$ = $1; } 
-    | statement_list statement
-    |
-    ;
-
-int_def:
-    VARIABLE '=' expr
-    | INTTYPE VARIABLE '=' expr
-    | CONST INTTYPE VARIABLE '=' expr
-
-str_def:
-    VARIABLE '=' STRING 
-    | STRINGTYPE VARIABLE '=' STRING 
-    | STRINGTYPE VARIABLE '=' VARIABLE 
-    | CONST STRINGTYPE VARIABLE '=' STRING  
-    | CONST STRINGTYPE VARIABLE '=' VARIABLE  
-
-bool_def:
-    | VARIABLE '=' bool 
-    | BOOLTYPE VARIABLE '=' bool 
-    | BOOLTYPE VARIABLE '=' VARIABLE 
-    | CONST BOOLTYPE VARIABLE '=' bool 
-    | CONST BOOLTYPE VARIABLE '=' VARIABLE 
-
-
 expr:
-    INTEGER 
-    | VARIABLE 
-    | expr '+' expr { $$ = $1 + $3; } 
-    | expr '-' expr { $$ = $1 - $3; } 
-    | expr '*' expr { $$ = $1 * $3; } 
-    | expr '/' expr { $$ = $1 / $3; }
-    | '(' expr ')' { $$ = $2; }
+    value
+    | NOT expr
+    | expr OR expr 
+    | expr XOR expr
+    | expr AND expr 
+    | expr GE expr 
+    | expr LE expr 
+    | expr EQ expr 
+    | expr NE expr 
+    | expr '+' expr  
+    | expr '-' expr  
+    | expr '*' expr  
+    | expr '/' expr 
+    | expr '%' expr
+    | expr '>' expr
+    | expr '<' expr 
+    | '(' expr ')' 
+    | VARIABLE
     ; 
-
-bool: 
-    BOOLEAN
-    | NOT bool { $$ = !$2; }
-    | bool OR bool { $$ = $1 || $3; }
-    | bool XOR bool { $$ = $1 ^ $3; }
-    | bool AND bool { $$ = $1 && $3; }
-    | expr GE expr { $$ = $1 >= $3; }
-    | expr LE expr { $$ = $1 <= $3; }
-    | expr EQ expr { $$ = $1 == $3; }
-    | expr NE expr { $$ = $1 != $3; }
-    | expr '>' expr { $$ = $1 > $3; }
-    | expr '<' expr { $$ = $1 < $3; }
-    | '(' bool ')' { $$ = $2; } 
-    ;
 
 %%
 

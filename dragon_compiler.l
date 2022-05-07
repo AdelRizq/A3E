@@ -10,7 +10,6 @@
 "else" return ELSE;
 "endif" return ENDIF;
 
-"do" return DO;
 "for" return FOR;
 "while" return WHILE;
 
@@ -19,54 +18,57 @@
 "switch" return SWITCH;
 "default" return DEFAULT;
 
+"repeat" return REPEAT;
+"until" return UNTIL;
+
 "print" return PRINT; 
 
 "int" return INTTYPE;
 "const" return CONST;
 "bool" return BOOLTYPE;
 "string" return STRINGTYPE;
+"float" return FLOATTYPE;
 
 
--?[0-9]+ { 
+[0-9]+ { 
     printf("Integer: %s\n", yytext); 
-    // yylval.iValue = atoi(yytext); 
     return INTEGER; 
 }
 
+[0-9]+\.[0-9]+ {
+    printf("Float: %s\n", yytext);
+    return FLOAT;
+}
+
 (true|false) {
-    printf("Boolean: %s\n", yytext);
-    // yylval.iValue = atoi(yytext);
+    printf("Boolean: %s\n", yytext);;
     return BOOLEAN;
 }
 
 \"[^\"]*\" { 
     printf("String: %s\n", yytext); 
-    // yylval.iValue = yytext; 
     return STRING; 
 }
 
 [a-zA-Z_][a-zA-Z0-9_]* { 
     printf("Variable: %s\n", yytext);
-    // yylval.iValue = yytext;
     return VARIABLE; 
 } 
 
-[+-/*] { 
+[/+*%-] { 
     printf("Operator: %s\n", yytext); 
-    // return OPERATOR; 
     return *yytext;
 }
 
-[()<>=;{}:\n] { 
+[()<>=;{}:] { 
     printf("Others: %s\n", yytext); 
     return *yytext; 
 }
 
-[ \t] { 
-    /* Skip Whitespaces and Tabs */
-    // printf("Whitespaces: %s\n", yytext); 
-    // return *yytext; 
-}
+\n ;
+\r ;
+\t ;
+" " ;
 
 "!" return NOT;
 "^" return XOR;
@@ -81,6 +83,5 @@
 %%
 
 int yywrap(void) { 
-    printf("Exhausted ya beh");
     return 1; 
 } 
