@@ -52,7 +52,7 @@
 %token NOT AND OR XOR
 %token GE LE EQ NE '>' '<'
 %token INTTYPE BOOLTYPE STRINGTYPE FLOATTYPE CONST
-%token IF WHILE REPEAT UNTIL FOR PRINT
+%token IF WHILE REPEAT UNTIL FOR PRINT ELSE
 %token SWITCH CASE DEFAULT BREAK 
 
 %nonassoc ENDIF 
@@ -87,21 +87,21 @@ statement_list:
     ;
 
 statement: 
-    PRINT expr ';' 
+    PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
     | VARIABLE '=' expr ';' {init_var();}
 
-    | WHILE '(' expr ')' body 
-    | REPEAT body UNTIL '(' expr ')' ';'
-    | FOR for_header  for_body
+    | WHILE {insert(false, false, 'K');} '(' expr ')' body 
+    | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
+    | FOR {insert(false, false, 'K');} for_header  for_body
     
     | IF '(' expr ')' body %prec ENDIF 
-    | IF '(' expr ')' body ELSE body 
+    | IF '(' expr ')' body ELSE   body 
 
-    | BREAK ';'
+    | BREAK {insert(false, false, 'K');} ';'
 
-    | SWITCH '(' VARIABLE ')' '{' case_list '}'
+    | SWITCH {insert(false, false, 'K');} '(' VARIABLE ')' '{' case_list '}'
 
     | ';'
     ; 
@@ -157,8 +157,8 @@ case_list:
     ;
 
 case_statement:
-    CASE case_switch_val ':' body 
-    | DEFAULT ':' body 
+    CASE {insert(false, false, 'K');} case_switch_val ':' body 
+    | DEFAULT {insert(false, false, 'K');} ':' body 
     ;
 
 case_switch_val: 
@@ -205,26 +205,28 @@ void insert_data_type() {
 }
 
 void insert(bool is_init, bool is_const, char type) {
-    bool in_table = is_exist(yylval.ID);
+    bool in_table = is_exist(yytext);
+
     if(!in_table) {
         struct dataType *entry = &symbolTable[sym_table_idx];
-        entry->name = strdup(yylval.ID);
-        printf("\nName: %s\n", entry->name); 
-        entry->dataType = dtype;
-        entry->is_const = is_const;
-        entry->line_no = line_num;
-        entry->type = type;
-        entry->is_initizalized = is_init;
-        entry->token_scope = scopes_stack[current_scope_idx];
-        printf("\nData Type %s \n", entry->dataType);
-
-        for(int i=0;i<=current_scope_idx;i++) {
-            entry->par_scopes[i] = scopes_stack[i];
+        if(type == 'V') {
+            entry->name = strdup(yylval.ID);
+            entry->dataType = dtype;
+        } else {
+            entry->name = strdup(yytext);
+            entry->dataType = strdup("N/A");
         }
 
-        if(type != 'V')
-            strcpy(dtype, (char *) "N/A");
+        entry->type = type;
+        entry->is_initizalized = is_init;
+        entry->is_const = is_const;
+        entry->line_no = line_num;
+        entry->token_scope = scopes_stack[current_scope_idx];
 
+        for(int i=0;i<=current_scope_idx;i++) {
+
+            entry->par_scopes[i] = scopes_stack[i];
+        }
         sym_table_idx ++;
     }    
 }
