@@ -1,6 +1,6 @@
 /lex-yacc-examples
 *.C
-*.h
+dragon_compiler.dot
+*.output
 *.exe 
 /.vscode
-*.pdf
