@@ -41,22 +41,22 @@
    enum yytokentype {
      INTEGER = 258,
      FLOAT = 259,
-     VARIABLE = 260,
-     BOOLEAN = 261,
-     STRING = 262,
-     CONST = 263,
-     NOT = 264,
-     AND = 265,
-     OR = 266,
-     XOR = 267,
-     GE = 268,
-     LE = 269,
-     EQ = 270,
-     NE = 271,
-     INTTYPE = 272,
-     BOOLTYPE = 273,
-     STRINGTYPE = 274,
-     FLOATTYPE = 275,
+     STRING = 260,
+     VARIABLE = 261,
+     BOOLEAN = 262,
+     NOT = 263,
+     AND = 264,
+     OR = 265,
+     XOR = 266,
+     GE = 267,
+     LE = 268,
+     EQ = 269,
+     NE = 270,
+     INTTYPE = 271,
+     BOOLTYPE = 272,
+     STRINGTYPE = 273,
+     FLOATTYPE = 274,
+     CONST = 275,
      IF = 276,
      WHILE = 277,
      REPEAT = 278,
@@ -79,14 +79,18 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 36 "dragon_compiler.y"
+#line 39 "dragon_compiler.y"
 
-	char* token;
+    int INTGR;
+    char *STR;
+    char *ID;
+    float FLT;
+    int bval;
 
 
 
 /* Line 1676 of yacc.c  */
-#line 90 "dragon_compiler.tab.h"
+#line 94 "dragon_compiler.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

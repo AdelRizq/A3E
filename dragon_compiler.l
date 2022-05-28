@@ -1,7 +1,8 @@
 %{
-    #include <stdio.h>
-    #include <stdlib.h>
+    #include<string.h>
     #include "dragon_compiler.tab.h"
+
+    int line_num=1;
 %}
 
 %% 
@@ -32,26 +33,31 @@
 
 [0-9]+ { 
     printf("Integer: %s\n", yytext); 
+    yylval.INTGR = atoi(yytext);
     return INTEGER; 
 }
 
 [0-9]+\.[0-9]+ {
     printf("Float: %s\n", yytext);
+    yylval.FLT = atof(strdup(yytext));
     return FLOAT;
 }
 
 (true|false) {
-    printf("Boolean: %s\n", yytext);;
+    printf("Boolean: %s\n", yytext);
+    yylval.bval = yytext[0] == 't';
     return BOOLEAN;
 }
 
 \"[^\"]*\" { 
     printf("String: %s\n", yytext); 
+    yylval.STR = strdup(yytext);
     return STRING; 
 }
 
 [a-zA-Z_][a-zA-Z0-9_]* { 
     printf("Variable: %s\n", yytext);
+    yylval.ID = strdup(yytext);
     return VARIABLE; 
 } 
 
@@ -65,7 +71,7 @@
     return *yytext; 
 }
 
-\n ;
+\n line_num++;
 \r ;
 \t ;
 " " ;

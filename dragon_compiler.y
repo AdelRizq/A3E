@@ -1,9 +1,15 @@
 %{ 
     #include<string.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <ctype.h>
     #include <stdbool.h>
-    #include<ctype.h>
 
-    void insert(bool is_init, bool is_const, char *type);
+    void yyerror(char *s);
+    int yywrap();
+    int yylex();
+
+    void insert(bool is_init, bool is_const, char type);
     int is_exist(char *name);
     void init_var();
     void open_scope();
@@ -12,14 +18,11 @@
 
     void printSymbolTable();
 
-    void yyerror(char *s);
-    int yywrap();
-
-    extern int yylex();
     extern int line_num;
 
     struct  dataType{
-        char *type, *name, *value, *dataType;
+        char *name, *value, *dataType;
+        char type;
         bool is_initizalized, is_const;
         int token_scope;
         int par_scopes[10];
@@ -27,7 +30,7 @@
     }; 
     struct dataType symbolTable[100];
 
-    char *dtype;
+    char *dtype, *yytext;
     int current_scope_idx = 0, next_scope = 2;
 
     int scopes_stack[100];
@@ -35,15 +38,20 @@
 
 %union {
     int INTGR;
-    char * STRNG;
+    char *STR;
+    char *ID;
     float FLT;
-    char CHR;
+    int bval;
 }
 
-%token INTEGER FLOAT VARIABLE BOOLEAN STRING CONST
+%token <INTGR> INTEGER
+%token <FLT> FLOAT 
+%token <STR> STRING 
+%token <ID> VARIABLE
+%token <bval> BOOLEAN
 %token NOT AND OR XOR
 %token GE LE EQ NE '>' '<'
-%token INTTYPE BOOLTYPE STRINGTYPE FLOATTYPE
+%token INTTYPE BOOLTYPE STRINGTYPE FLOATTYPE CONST
 %token IF WHILE REPEAT UNTIL FOR PRINT
 %token SWITCH CASE DEFAULT BREAK 
 
@@ -121,10 +129,10 @@ value:
     BOOLEAN | INTEGER | FLOAT | STRING
 
 var_definition:
-    type VARIABLE
-    | CONST type VARIABLE
-    | type VARIABLE '=' expr
-    | CONST type VARIABLE '=' expr
+    type VARIABLE {insert(false, false, 'V'); }
+    | CONST type VARIABLE {insert(false, true, 'V'); }
+    | type VARIABLE  {insert(true, false, 'V'); } '=' expr 
+    | CONST type VARIABLE  {insert(true, true, 'V'); } '=' expr
     ;
 
 for_var:
@@ -193,28 +201,30 @@ int main() {
 }
 
 void insert_data_type() {
-    strcpy(dtype, yytext);
+    dtype=strdup(yytext);
 }
 
-void insert(bool is_init, bool is_const, char *type) {
-    bool in_table = is_exist(yytext);
-    if(in_table) {
-        yyerror("Variable already exists");
-    } else {
+void insert(bool is_init, bool is_const, char type) {
+    bool in_table = is_exist(yylval.ID);
+    if(!in_table) {
         struct dataType *entry = &symbolTable[sym_table_idx];
-        entry->name = yytext;
+        entry->name = strdup(yylval.ID);
+        printf("\nName: %s\n", entry->name); 
         entry->dataType = dtype;
         entry->is_const = is_const;
         entry->line_no = line_num;
         entry->type = type;
         entry->is_initizalized = is_init;
         entry->token_scope = scopes_stack[current_scope_idx];
+        printf("\nData Type %s \n", entry->dataType);
 
         for(int i=0;i<=current_scope_idx;i++) {
             entry->par_scopes[i] = scopes_stack[i];
         }
 
-        strcpy(dtype, (char *) "N/A");
+        if(type != 'V')
+            strcpy(dtype, (char *) "N/A");
+
         sym_table_idx ++;
     }    
 }
@@ -235,7 +245,7 @@ void close_scope() {
 
 int is_exist(char *name) {
 	for(int i=sym_table_idx-1; i>=0; i--) {
-		if(strcmp(symbolTable[i].name, name)==0 && symbolTable[i].token_scope == scopes_stack[current_scope_idx]) {
+		if(strcmp(symbolTable[i].name, strdup(name))==0 && symbolTable[i].token_scope == scopes_stack[current_scope_idx]) {
 			return i+1;
 		}
 	}
@@ -246,7 +256,8 @@ void printSymbolTable() {
     printf("\nName\tData Type\tScope\tType\tLine\tConst\tInitialized \n");
 
     for(int i=0; i<sym_table_idx; i++) {
-        struct dataType *entry = &symbolTable[sym_table_idx];
-        printf("%s\t%s\t%d\t%s\t%d\t%d\t%d\n", entry->name, entry->dataType, entry->token_scope, entry->type, entry->line_no, entry->is_const, entry->is_initizalized);
+        struct dataType *entry = &symbolTable[i];
+
+        printf("%s\t%s\t\t%d\t%c\t%d\t%d\t%d\n", entry->name, entry->dataType, entry->token_scope, entry->type, entry->line_no,entry->is_const, entry->is_initizalized); 
     }
 }
