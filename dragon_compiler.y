@@ -52,11 +52,11 @@
 %token NOT AND OR XOR
 %token GE LE EQ NE '>' '<'
 %token INTTYPE BOOLTYPE STRINGTYPE FLOATTYPE CONST
-%token IF WHILE REPEAT UNTIL FOR PRINT ELSE
+%token IF ELSE WHILE REPEAT UNTIL FOR PRINT ENDIF
 %token SWITCH CASE DEFAULT BREAK 
 
-%nonassoc ENDIF 
-%nonassoc ELSE
+/* %nonassoc ENDIF 
+%nonassoc ELSE */
 
 %right "="
 %left XOR
@@ -96,8 +96,7 @@ statement:
     | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
     | FOR {insert(false, false, 'K');} for_header  for_body
     
-    | IF '(' expr ')' body %prec ENDIF 
-    | IF '(' expr ')' body ELSE   body 
+    | IF {insert(false, false, 'K');}  '(' expr ')' body else
 
     | BREAK {insert(false, false, 'K');} ';'
 
@@ -105,6 +104,11 @@ statement:
 
     | ';'
     ; 
+
+else:
+    ELSE {insert(false, false, 'K');} body
+    | ENDIF {insert(false, false, 'K');}
+    ;
 
 for_body:
     statement
@@ -126,7 +130,10 @@ type:
     | FLOATTYPE { insert_data_type(); }
 
 value:
-    BOOLEAN | INTEGER | FLOAT | STRING
+    BOOLEAN {insert(false, false, 'C');}
+    | INTEGER {insert(false, false, 'C');}
+    | FLOAT {insert(false, false, 'C');}
+    | STRING {insert(false, false, 'C');}
 
 var_definition:
     type VARIABLE {insert(false, false, 'V'); }
@@ -255,11 +262,18 @@ int is_exist(char *name) {
 }
 
 void printSymbolTable() {
-    printf("\nName\tData Type\tScope\tType\tLine\tConst\tInitialized \n");
+    // write symbol table to file
+    FILE *fp = fopen("symbol_table.txt", "w");
+    if(fp == NULL) {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+
+    fprintf(fp, "\nName\tData Type\tScope\tType\tLine\tConst\tInitialized \n");
 
     for(int i=0; i<sym_table_idx; i++) {
         struct dataType *entry = &symbolTable[i];
 
-        printf("%s\t%s\t\t%d\t%c\t%d\t%d\t%d\n", entry->name, entry->dataType, entry->token_scope, entry->type, entry->line_no,entry->is_const, entry->is_initizalized); 
+        fprintf(fp, "%4s\t%9s\t%5d\t%4c\t%4d\t%3d\t%10d\n", entry->name, entry->dataType, entry->token_scope, entry->type, entry->line_no,entry->is_const, entry->is_initizalized); 
     }
 }
