@@ -5,6 +5,7 @@
     #include <ctype.h>
     #include <stdbool.h>
     #include <sys/types.h>
+    #define YYERROR_VERBOSE
 
     int mkdir(const char *pathname, mode_t mode);
 
@@ -208,7 +209,7 @@ declared_var:
 int sym_table_idx = 0;
 
 void yyerror(char *s) { 
-    fprintf(stderr, "%s\n", s);
+    fprintf(stderr, "line %d: %s\n", line_num, s);
     return; 
 } 
 
@@ -316,8 +317,11 @@ void printSymbolTable() {
 
 void check_declaration() {
     bool error_flag = true;
+    bool found = false;
+
     for(int i=0;i<sym_table_idx && error_flag; i++) {
-        if(strcmp(symbolTable[i].name, strdup(yytext))==0) {
+        if(strcmp(symbolTable[i].name, yytext)==0) {
+            found = true;
             for(int j=0;j<=current_scope_idx && error_flag; j++) {
                 if(symbolTable[i].token_scope == scopes_stack[j]) {
                     error_flag = false;
@@ -326,7 +330,11 @@ void check_declaration() {
         }
     }
 
-    if(error_flag) {
+    if(found) {
+        if(error_flag) {
+            sprintf(errors[error_count++], "Line %d: Variable \"%s\" used out of scope\n", line_num, yytext);
+        }
+    } else {
         sprintf(errors[error_count++], "Line %d: Variable \"%s\" used without declaration\n", line_num, yytext);
     }
 }
