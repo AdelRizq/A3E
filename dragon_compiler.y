@@ -36,7 +36,7 @@
     int current_scope_idx = 0, next_scope = 2;
 
     int scopes_stack[100];
-    char errors[20][100];
+    char errors[50][100];
     int error_count = 0;
 %}
 
@@ -94,7 +94,7 @@ statement:
     PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
-    | declared_var '=' expr ';' {init_var(); check_declaration($1);}
+    | declared_var '=' expr ';' {init_var();}
 
     | WHILE {insert(false, false, 'K');} '(' expr ')' body 
     | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
@@ -148,7 +148,7 @@ var_definition:
 
 for_var:
     var_definition
-    | declared_var '=' expr {init_var(); check_declaration($1);}
+    | declared_var '=' expr {init_var();}
     |
     ;
 
@@ -158,7 +158,7 @@ for_cond:
     ;
 
 for_expr:
-    declared_var '=' expr {init_var(); check_declaration($1);}
+    declared_var '=' expr {init_var();}
     |
     ;
 
@@ -223,7 +223,8 @@ void insert_data_type() {
 }
 
 void insert(bool is_init, bool is_const, char type) {
-    bool in_table = is_duplicated(yytext);
+    printf("insert yytext %s\n", yytext);
+    int in_table = is_duplicated(yytext);
 
     if(!in_table) {
         struct dataType *entry = &symbolTable[sym_table_idx];
@@ -245,8 +246,11 @@ void insert(bool is_init, bool is_const, char type) {
 
             entry->par_scopes[i] = scopes_stack[i];
         }
+
         sym_table_idx ++;
-    }    
+    } else {
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" already declared!\n", line_num, yytext);
+    }   
 }
 
 void init_var() {
@@ -265,6 +269,8 @@ void close_scope() {
 
 int is_duplicated(char *name) {
 	for(int i=sym_table_idx-1; i>=0; i--) {
+        printf("names: %s  %s\n", symbolTable[i].name, name);
+        printf("scopes: %d  %d\n", symbolTable[i].token_scope,  scopes_stack[current_scope_idx]);
 		if(strcmp(symbolTable[i].name, strdup(name))==0 && symbolTable[i].token_scope == scopes_stack[current_scope_idx]) {
 			return i+1;
 		}
@@ -303,6 +309,6 @@ void check_declaration() {
     }
 
     if(error_flag) {
-        sprintf(errors[error_count++], "Line %d: Variable \"%s\" not declared before usage!\n", line_num, name);
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" not declared before usage!\n", line_num, yytext);
     }
 }
