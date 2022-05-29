@@ -19,13 +19,16 @@
     void printSymbolTable();
 
     void check_declaration();
+    void check_initialized();
+
+    void set_used();
 
     extern int line_num;
 
     struct  dataType{
         char *name, *value, *dataType;
         char type;
-        bool is_initizalized, is_const;
+        bool is_initizalized, is_const, is_used;
         int token_scope;
         int par_scopes[10];
         int line_no;
@@ -104,7 +107,7 @@ statement:
 
     | BREAK {insert(false, false, 'K');} ';'
 
-    | SWITCH {insert(false, false, 'K');} '(' declared_var ')' '{' case_list '}'
+    | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' case_list '}'
 
     | ';'
     ; 
@@ -193,7 +196,7 @@ expr:
     | expr '>' expr
     | expr '<' expr 
     | '(' expr ')' 
-    | declared_var
+    | declared_var {check_initialized(); set_used();}
     ; 
 declared_var:
     VARIABLE {check_declaration();}
@@ -210,6 +213,12 @@ int main() {
     scopes_stack[0] = 1;
     yyparse();
     printSymbolTable();
+
+    for(int i=0; i<sym_table_idx; i++) {
+        if(symbolTable[i].type == 'V' && symbolTable[i].is_used == false) {
+            sprintf(errors[error_count++], "Line %d: Variable \"%s\" is not used\n", line_num, symbolTable[i].name);
+        } 
+    }
 
     for(int i=0;i<error_count;i++) {
         printf("%s\n", errors[i]);
@@ -306,6 +315,25 @@ void check_declaration() {
     }
 
     if(error_flag) {
-        sprintf(errors[error_count++], "Line %d: Variable \"%s\" not declared before usage!\n", line_num, yytext);
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" used without declaration\n", line_num, yytext);
+    }
+}
+
+void check_initialized() {
+    for(int i=sym_table_idx-1;i>=0;i--) {
+        if(strcmp(symbolTable[i].name, yytext)==0) {
+            if(symbolTable[i].is_initizalized == false) {
+                sprintf(errors[error_count++], "Line %d: Variable \"%s\" used without initialization\n", line_num, yytext);
+            }
+        }
+    }
+}
+
+void set_used() {
+    for(int i=sym_table_idx-1;i>=0;i--) {
+        if(strcmp(symbolTable[i].name, yytext)==0) {
+            symbolTable[i].is_used = true;
+            break;
+        }
     }
 }
