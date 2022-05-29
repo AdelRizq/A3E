@@ -1,0 +1,7 @@
+{
+    "conventionalCommits.scopes": [
+        "Phase 1",
+        "Symbol Table",
+        "Semantic Analysis"
+    ]
+}
