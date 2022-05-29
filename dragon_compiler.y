@@ -10,13 +10,15 @@
     int yylex();
 
     void insert(bool is_init, bool is_const, char type);
-    int is_exist(char *name);
+    int is_duplicated(char *name);
     void init_var();
     void open_scope();
     void close_scope();
     void insert_data_type();
 
     void printSymbolTable();
+
+    void check_declaration();
 
     extern int line_num;
 
@@ -34,6 +36,8 @@
     int current_scope_idx = 0, next_scope = 2;
 
     int scopes_stack[100];
+    char errors[20][100];
+    int error_count = 0;
 %}
 
 %union {
@@ -75,7 +79,7 @@ program:
     ; 
 
 block: 
-    '{' {open_scope();} '}' {close_scope();}
+    '{' '}'
     | '{' {open_scope();} statement_list '}' {close_scope();}
     ;
     
@@ -90,7 +94,7 @@ statement:
     PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
-    | VARIABLE '=' expr ';' {init_var();}
+    | declared_var '=' expr ';' {init_var(); check_declaration($1);}
 
     | WHILE {insert(false, false, 'K');} '(' expr ')' body 
     | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
@@ -100,14 +104,14 @@ statement:
 
     | BREAK {insert(false, false, 'K');} ';'
 
-    | SWITCH {insert(false, false, 'K');} '(' VARIABLE ')' '{' case_list '}'
+    | SWITCH {insert(false, false, 'K');} '(' declared_var ')' '{' case_list '}'
 
     | ';'
     ; 
 
 else:
     ELSE {insert(false, false, 'K');} body
-    | ENDIF {insert(false, false, 'K');}
+    | ENDIF {insert(false, false, 'K');} ';'
     ;
 
 for_body:
@@ -144,7 +148,7 @@ var_definition:
 
 for_var:
     var_definition
-    | VARIABLE '=' expr {init_var();}
+    | declared_var '=' expr {init_var(); check_declaration($1);}
     |
     ;
 
@@ -154,7 +158,7 @@ for_cond:
     ;
 
 for_expr:
-    VARIABLE '=' expr {init_var();}
+    declared_var '=' expr {init_var(); check_declaration($1);}
     |
     ;
 
@@ -189,9 +193,11 @@ expr:
     | expr '>' expr
     | expr '<' expr 
     | '(' expr ')' 
-    | VARIABLE
+    | declared_var
     ; 
-
+declared_var:
+    VARIABLE {check_declaration();}
+    ;
 %%
 int sym_table_idx = 0;
 
@@ -204,6 +210,11 @@ int main() {
     scopes_stack[0] = 1;
     yyparse();
     printSymbolTable();
+
+    for(int i=0;i<error_count;i++) {
+        printf("%s\n", errors[i]);
+    }
+
     return 0; 
 }
 
@@ -212,7 +223,7 @@ void insert_data_type() {
 }
 
 void insert(bool is_init, bool is_const, char type) {
-    bool in_table = is_exist(yytext);
+    bool in_table = is_duplicated(yytext);
 
     if(!in_table) {
         struct dataType *entry = &symbolTable[sym_table_idx];
@@ -239,7 +250,7 @@ void insert(bool is_init, bool is_const, char type) {
 }
 
 void init_var() {
-    int idx = is_exist(yytext)-1;
+    int idx = is_duplicated(yytext)-1;
     symbolTable[idx].is_initizalized = true;
 }
 
@@ -252,7 +263,7 @@ void close_scope() {
     current_scope_idx --;
 }
 
-int is_exist(char *name) {
+int is_duplicated(char *name) {
 	for(int i=sym_table_idx-1; i>=0; i--) {
 		if(strcmp(symbolTable[i].name, strdup(name))==0 && symbolTable[i].token_scope == scopes_stack[current_scope_idx]) {
 			return i+1;
@@ -275,5 +286,23 @@ void printSymbolTable() {
         struct dataType *entry = &symbolTable[i];
 
         fprintf(fp, "%4s\t%9s\t%5d\t%4c\t%4d\t%3d\t%10d\n", entry->name, entry->dataType, entry->token_scope, entry->type, entry->line_no,entry->is_const, entry->is_initizalized); 
+    }
+}
+
+
+void check_declaration() {
+    bool error_flag = true;
+    for(int i=0;i<sym_table_idx && error_flag; i++) {
+        if(strcmp(symbolTable[i].name, strdup(yytext))==0) {
+            for(int j=0;j<=current_scope_idx && error_flag; j++) {
+                if(symbolTable[i].token_scope == scopes_stack[j]) {
+                    error_flag = false;
+                }
+            }
+        }
+    }
+
+    if(error_flag) {
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" not declared before usage!\n", line_num, name);
     }
 }
