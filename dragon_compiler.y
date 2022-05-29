@@ -4,6 +4,9 @@
     #include <stdlib.h>
     #include <ctype.h>
     #include <stdbool.h>
+    #include <sys/types.h>
+
+    int mkdir(const char *pathname, mode_t mode);
 
     void yyerror(char *s);
     int yywrap();
@@ -210,18 +213,27 @@ void yyerror(char *s) {
 } 
 
 int main() {  
+    // create output folder if not exists
+    mkdir("output", 0777);
+
     scopes_stack[0] = 1;
     yyparse();
     printSymbolTable();
 
     for(int i=0; i<sym_table_idx; i++) {
         if(symbolTable[i].type == 'V' && symbolTable[i].is_used == false) {
-            sprintf(errors[error_count++], "Line %d: Variable \"%s\" is not used\n", line_num, symbolTable[i].name);
+            sprintf(errors[error_count++], "Line %d: Variable \"%s\" is not used\n", symbolTable[i].line_no, symbolTable[i].name);
         } 
     }
 
+    FILE *fp = fopen("output/errors.txt", "w");
+    if(fp == NULL) {
+        printf("Error opening output/errors.txt file!\n");
+        exit(1);
+    }
+
     for(int i=0;i<error_count;i++) {
-        printf("%s\n", errors[i]);
+        fprintf(fp, "%s", errors[i]);
     }
 
     return 0; 
@@ -286,9 +298,9 @@ int is_duplicated(char *name) {
 
 void printSymbolTable() {
     // write symbol table to file
-    FILE *fp = fopen("symbol_table.txt", "w");
+    FILE *fp = fopen("output/symbol_table.txt", "w");
     if(fp == NULL) {
-        printf("Error opening file!\n");
+        printf("Error opening symbol_table.txt file!\n");
         exit(1);
     }
 
