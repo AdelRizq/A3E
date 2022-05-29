@@ -223,10 +223,9 @@ void insert_data_type() {
 }
 
 void insert(bool is_init, bool is_const, char type) {
-    printf("insert yytext %s\n", yytext);
-    int in_table = is_duplicated(yytext);
+    int dup_idx = type == 'V' ? is_duplicated(yylval.ID):0;
 
-    if(!in_table) {
+    if(type != 'V' || !dup_idx) {
         struct dataType *entry = &symbolTable[sym_table_idx];
         if(type == 'V') {
             entry->name = strdup(yylval.ID);
@@ -243,15 +242,15 @@ void insert(bool is_init, bool is_const, char type) {
         entry->token_scope = scopes_stack[current_scope_idx];
 
         for(int i=0;i<=current_scope_idx;i++) {
-
             entry->par_scopes[i] = scopes_stack[i];
         }
 
         sym_table_idx ++;
     } else {
-        sprintf(errors[error_count++], "Line %d: Variable \"%s\" already declared!\n", line_num, yytext);
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" already declared at line %d\n", line_num, yylval.ID, symbolTable[dup_idx-1].line_no);
     }   
 }
+
 
 void init_var() {
     int idx = is_duplicated(yytext)-1;
@@ -269,8 +268,6 @@ void close_scope() {
 
 int is_duplicated(char *name) {
 	for(int i=sym_table_idx-1; i>=0; i--) {
-        printf("names: %s  %s\n", symbolTable[i].name, name);
-        printf("scopes: %d  %d\n", symbolTable[i].token_scope,  scopes_stack[current_scope_idx]);
 		if(strcmp(symbolTable[i].name, strdup(name))==0 && symbolTable[i].token_scope == scopes_stack[current_scope_idx]) {
 			return i+1;
 		}
