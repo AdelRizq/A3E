@@ -4,6 +4,7 @@
         "Symbol Table",
         "Semantic Analysis",
         "GUI",
-        "Syntax Errors"
+        "Syntax Errors",
+        "Quads"
     ]
 }

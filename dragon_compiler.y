@@ -28,6 +28,12 @@
 
     void set_used();
 
+    // Quads helper functions
+    void push();
+    void pushVal(char *val);
+    void pop(char *dst);
+    void quad2OperandsGen(char *opr);
+
     extern int line_num;
 
     struct  dataType{
@@ -46,6 +52,15 @@
     int scopes_stack[100];
     char errors[50][100];
     int error_count = 0;
+
+    int quadTop = 0;
+    char quadStack[100][20];
+
+    char quads[100][100];
+    int quadCount = 0;
+
+    int regCount = 0;
+
 %}
 
 %union {
@@ -106,7 +121,7 @@ statement:
     | var_definition ';'
     | declared_var {check_const();} '=' expr ';' {init_var();}
 
-    | WHILE {insert(false, false, 'K');} '(' expr ')' body 
+    | WHILE {insert(false, false, 'K');} '(' expr ')' body
     | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
     | FOR {insert(false, false, 'K');} for_header  for_body
     
@@ -144,15 +159,15 @@ type:
     | FLOATTYPE { insert_data_type(); }
 
 value:
-    BOOLEAN {insert(false, false, 'C');}
-    | INTEGER {insert(false, false, 'C');}
-    | FLOAT {insert(false, false, 'C');}
-    | STRING {insert(false, false, 'C');}
+    BOOLEAN {insert(false, false, 'C'); push();}
+    | INTEGER {insert(false, false, 'C'); push();}
+    | FLOAT {insert(false, false, 'C'); push();}
+    | STRING {insert(false, false, 'C'); push();}
 
 var_definition:
     type VARIABLE {insert(false, false, 'V'); }
-    | type VARIABLE  {insert(true, false, 'V'); } '=' expr 
-    | CONST type VARIABLE  {insert(true, true, 'V'); } '=' expr
+    | type VARIABLE  {insert(true, false, 'V');} '=' expr
+    | CONST type VARIABLE  {insert(true, true, 'V');} '=' expr
     ;
 
 for_var:
@@ -187,22 +202,22 @@ case_switch_val:
 expr:
     value
     | NOT expr
-    | expr OR expr 
-    | expr XOR expr
-    | expr AND expr 
-    | expr GE expr 
-    | expr LE expr 
-    | expr EQ expr 
-    | expr NE expr 
-    | expr '+' expr  
-    | expr '-' expr  
-    | expr '*' expr  
-    | expr '/' expr 
-    | expr '%' expr
-    | expr '>' expr
-    | expr '<' expr 
+    | expr OR  expr {quad2OperandsGen("||");}
+    | expr XOR expr {quad2OperandsGen("^");}
+    | expr AND expr {quad2OperandsGen("&&");}
+    | expr GE  expr {quad2OperandsGen(">=");}
+    | expr LE  expr {quad2OperandsGen("<=");}
+    | expr EQ  expr {quad2OperandsGen("==");}
+    | expr NE  expr {quad2OperandsGen("!=");}
+    | expr '+' expr {quad2OperandsGen("+");}
+    | expr '-' expr {quad2OperandsGen("-");}
+    | expr '*' expr {quad2OperandsGen("*");}
+    | expr '/' expr {quad2OperandsGen("/");}
+    | expr '%' expr {quad2OperandsGen("%");}
+    | expr '>' expr {quad2OperandsGen(">");}
+    | expr '<' expr {quad2OperandsGen("<");}
     | '(' expr ')' 
-    | declared_var {check_initialized(); set_used();}
+    | declared_var {check_initialized(); set_used(); push();}
     ; 
 declared_var:
     VARIABLE {check_declaration();}
@@ -211,7 +226,6 @@ declared_var:
 int sym_table_idx = 0;
 
 void yyerror(char *s) { 
-    /* fprintf(stderr, "line %d: %s\n", line_num, s); */
     sprintf(errors[error_count++],"Line %d: %s\n",line_num, s);
 } 
 
@@ -237,6 +251,14 @@ int main() {
 
     for(int i=0;i<error_count;i++) {
         fprintf(fp, "%s", errors[i]);
+    }
+
+    fclose(fp);
+
+    // print quadruples
+    printf("\nQuadruples:\n");
+    for (int i = 0; i < quadCount; i++) {
+        printf("%s\n", quads[i]);
     }
 
     return 0; 
@@ -365,4 +387,46 @@ void check_const() {
     if(symbolTable[idx].is_const) {
         sprintf(errors[error_count++], "Line %d: Variable \"%s\" is a constant\n", line_num, yytext);
     }
+}
+
+void push() {
+    strcpy(quadStack[quadTop++], yytext);
+    sprintf(quads[quadCount++], "PUSH %s", yytext);
+}
+
+void pushVal(char *val) {
+    strcpy(quadStack[quadTop++], val);
+    sprintf(quads[quadCount++], "PUSH %s", val);
+}
+
+void pop(char *dst) {
+    --quadTop;
+    sprintf(quads[quadCount++], "POP %s", dst);
+}
+
+void quad2OperandsGen(char *opr) {
+    char *op1 = strdup(quadStack[quadTop-2]);
+    char *op2 = strdup(quadStack[quadTop-1]);
+
+    --quadTop; // pop wihtout creating quad
+    --quadTop; // pop wihtout creating quad
+    
+    char tempReg[10];
+    sprintf(tempReg, "R%d", regCount++);
+    strcpy(quadStack[quadTop++], tempReg);
+    
+    if (strcmp(opr, "+") == 0)       sprintf(quads[quadCount++], "ADD %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "-") == 0)  sprintf(quads[quadCount++], "SUB %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "*") == 0)  sprintf(quads[quadCount++], "MUL %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "/") == 0)  sprintf(quads[quadCount++], "DIV %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "%") == 0)  sprintf(quads[quadCount++], "MOD %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "<") == 0)  sprintf(quads[quadCount++], "LT %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, ">") == 0)  sprintf(quads[quadCount++], "GT %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "^") == 0)  sprintf(quads[quadCount++], "XOR %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "<=") == 0) sprintf(quads[quadCount++], "LE %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, ">=") == 0) sprintf(quads[quadCount++], "GE %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "==") == 0) sprintf(quads[quadCount++], "EQ %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "!=") == 0) sprintf(quads[quadCount++], "NE %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "&&") == 0) sprintf(quads[quadCount++], "AND %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "||") == 0) sprintf(quads[quadCount++], "OR %s, %s, %s", op1, op2, quadStack[quadTop-1]);
 }
