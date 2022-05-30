@@ -95,6 +95,8 @@ statement_list:
     | block
     | statement_list statement
     | statement_list block
+    | statement_list error 
+    | error
     ;
 
 statement: 
@@ -112,6 +114,8 @@ statement:
     | BREAK {insert(false, false, 'K');} ';'
 
     | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' case_list '}'
+
+    | error
 
     | ';'
     ; 
@@ -209,8 +213,8 @@ declared_var:
 int sym_table_idx = 0;
 
 void yyerror(char *s) { 
-    fprintf(stderr, "line %d: %s\n", line_num, s);
-    return; 
+    /* fprintf(stderr, "line %d: %s\n", line_num, s); */
+    sprintf(errors[error_count++],"Line %d: %s\n",line_num, s);
 } 
 
 int main() {  
