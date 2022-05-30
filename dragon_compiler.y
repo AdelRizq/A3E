@@ -24,6 +24,7 @@
 
     void check_declaration();
     void check_initialized();
+    void check_const();
 
     void set_used();
 
@@ -103,7 +104,7 @@ statement:
     PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
-    | declared_var '=' expr ';' {init_var();}
+    | declared_var {check_const();} '=' expr ';' {init_var();}
 
     | WHILE {insert(false, false, 'K');} '(' expr ')' body 
     | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
@@ -114,8 +115,6 @@ statement:
     | BREAK {insert(false, false, 'K');} ';'
 
     | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' case_list '}'
-
-    | error
 
     | ';'
     ; 
@@ -152,14 +151,13 @@ value:
 
 var_definition:
     type VARIABLE {insert(false, false, 'V'); }
-    | CONST type VARIABLE {insert(false, true, 'V'); }
     | type VARIABLE  {insert(true, false, 'V'); } '=' expr 
     | CONST type VARIABLE  {insert(true, true, 'V'); } '=' expr
     ;
 
 for_var:
     var_definition
-    | declared_var '=' expr {init_var();}
+    | declared_var {check_const();} '=' expr {init_var();}
     |
     ;
 
@@ -169,7 +167,7 @@ for_cond:
     ;
 
 for_expr:
-    declared_var '=' expr {init_var();}
+    declared_var {check_const();} '=' expr {init_var();}
     |
     ;
 
@@ -359,5 +357,12 @@ void set_used() {
             symbolTable[i].is_used = true;
             break;
         }
+    }
+}
+
+void check_const() {
+    int idx = is_duplicated(yytext)-1;
+    if(symbolTable[idx].is_const) {
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" is a constant\n", line_num, yytext);
     }
 }
