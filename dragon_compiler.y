@@ -32,6 +32,7 @@
     void push();
     void pushVal(char *val);
     void pop(char *dst);
+    void quad1OperandGen(char *opr);
     void quad2OperandsGen(char *opr);
 
     extern int line_num;
@@ -119,7 +120,7 @@ statement:
     PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
-    | declared_var {check_const();} '=' expr ';' {init_var();}
+    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr ';' {init_var(); pop(quadStack[quadTop-2]);}
 
     | WHILE {insert(false, false, 'K');} '(' expr ')' body
     | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
@@ -166,13 +167,13 @@ value:
 
 var_definition:
     type VARIABLE {insert(false, false, 'V'); }
-    | type VARIABLE  {insert(true, false, 'V');} '=' expr
-    | CONST type VARIABLE  {insert(true, true, 'V');} '=' expr
+    | type VARIABLE  {insert(true, false, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]);}
+    | CONST type VARIABLE  {insert(true, true, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]);}
     ;
 
 for_var:
     var_definition
-    | declared_var {check_const();} '=' expr {init_var();}
+    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);}
     |
     ;
 
@@ -182,7 +183,7 @@ for_cond:
     ;
 
 for_expr:
-    declared_var {check_const();} '=' expr {init_var();}
+    declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);}
     |
     ;
 
@@ -201,7 +202,7 @@ case_switch_val:
 
 expr:
     value
-    | NOT expr
+    | NOT expr {quad1OperandGen("!");}
     | expr OR  expr {quad2OperandsGen("||");}
     | expr XOR expr {quad2OperandsGen("^");}
     | expr AND expr {quad2OperandsGen("&&");}
@@ -338,7 +339,6 @@ void printSymbolTable() {
     }
 }
 
-
 void check_declaration() {
     bool error_flag = true;
     bool found = false;
@@ -402,6 +402,19 @@ void pushVal(char *val) {
 void pop(char *dst) {
     --quadTop;
     sprintf(quads[quadCount++], "POP %s", dst);
+}
+
+void quad1OperandGen(char *opr) {
+    char *op1 = strdup(quadStack[quadTop-1]);
+
+    --quadTop; // pop wihtout creating quad
+    
+    char tempReg[10];
+    sprintf(tempReg, "R%d", regCount++);
+    strcpy(quadStack[quadTop++], tempReg);
+    
+    if (strcmp(opr, "!") == 0) sprintf(quads[quadCount++], "NOT %s, %s", op1, quadStack[quadTop-1]);
+
 }
 
 void quad2OperandsGen(char *opr) {
