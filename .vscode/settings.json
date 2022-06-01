@@ -3,6 +3,8 @@
         "Phase 1",
         "Symbol Table",
         "Semantic Analysis",
-        "GUI"
+        "GUI",
+        "Syntax Errors",
+        "Quads"
     ]
 }
