@@ -25,6 +25,7 @@
     void check_declaration();
     void check_initialized();
     void check_const();
+    void checkDefualtNums();
 
     void set_used();
 
@@ -72,6 +73,9 @@
     int labelCount = 0;
     int labelTop = 0;
     char labelStack[100][20];
+
+    int defualtNumStack[20];
+    int defualtNumTop = 0;
 %}
 
 %union {
@@ -140,7 +144,7 @@ statement:
 
     | BREAK {insert(false, false, 'K');} ';' {JMP(false, 1);}
 
-    | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' case_list '}'
+    | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' {defualtNumStack[defualtNumTop++]=0;} case_list '}' {checkDefualtNums();}
 
     | ';'
     ; 
@@ -204,7 +208,7 @@ case_list:
 
 case_statement:
     CASE {insert(false, false, 'K');} case_switch_val ':' body 
-    | DEFAULT {insert(false, false, 'K');} ':' body 
+    | DEFAULT {insert(false, false, 'K');} ':' body {defualtNumStack[defualtNumTop-1]++;}
     ;
 
 case_switch_val: 
@@ -489,3 +493,11 @@ void printLabel(bool addLabelFlag, int labelOffset) {
     sprintf(quads[quadCount++], "%s:", labelStack[labelTop-labelOffset]);
 }
     
+void checkDefualtNums() {
+    if(defualtNumStack[defualtNumTop-1] == 0) {
+        sprintf(errors[error_count++], "Line %d: missing default case\n", line_num, yytext);
+    } else if (defualtNumStack[defualtNumTop-1] > 1) {
+        sprintf(errors[error_count++], "Line %d: multiple default cases\n", line_num, yytext);
+    }
+    --defualtNumTop;
+}
