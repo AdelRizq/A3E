@@ -24,9 +24,24 @@
 
     void check_declaration();
     void check_initialized();
+    void check_const();
 
     void set_used();
 
+    // Quads helper functions
+    void push();
+    void pushVal(char *val);
+    void pop(char *dst);
+    void quad1OperandGen(char *opr);
+    void quad2OperandsGen(char *opr);
+
+    // Labels helper methods
+    void addLabel();
+    void popLabels(int num);
+    void JZ(bool addLabelFlag);
+    void JMP(bool addLabelFlag, int labelOffset);
+    void printLabel(bool addLabelFlag, int labelOffset);
+    
     extern int line_num;
 
     struct  dataType{
@@ -45,6 +60,18 @@
     int scopes_stack[100];
     char errors[50][100];
     int error_count = 0;
+
+    int quadTop = 0;
+    char quadStack[100][20];
+
+    char quads[100][100];
+    int quadCount = 0;
+
+    int regCount = 0;
+
+    int labelCount = 0;
+    int labelTop = 0;
+    char labelStack[100][20];
 %}
 
 %union {
@@ -95,21 +122,23 @@ statement_list:
     | block
     | statement_list statement
     | statement_list block
+    | statement_list error 
+    | error
     ;
 
 statement: 
     PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
-    | declared_var '=' expr ';' {init_var();}
+    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr ';' {init_var(); pop(quadStack[quadTop-2]);}
 
-    | WHILE {insert(false, false, 'K');} '(' expr ')' body 
-    | REPEAT {insert(false, false, 'K');} body UNTIL {insert(false, false, 'K');} '(' expr ')' ';'
-    | FOR {insert(false, false, 'K');} for_header  for_body
+    | WHILE {insert(false, false, 'K'); printLabel(true, 1); } '(' expr ')' {JZ(true);} body {JMP(false, 2); printLabel(false, 1); popLabels(2);}
+    | REPEAT {insert(false, false, 'K'); printLabel(true, 1); } body UNTIL {insert(false, false, 'K');} '(' expr ')' ';' {JZ(false); popLabels(1);}
+    | FOR {insert(false, false, 'K');} for_header  for_body { JMP(false, 2); printLabel(false, 1); popLabels(2);}
     
-    | IF {insert(false, false, 'K');}  '(' expr ')' body else
+    | IF {insert(false, false, 'K');} '(' expr ')' {JZ(true);} body else
 
-    | BREAK {insert(false, false, 'K');} ';'
+    | BREAK {insert(false, false, 'K');} ';' {JMP(false, 1);}
 
     | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' case_list '}'
 
@@ -117,8 +146,8 @@ statement:
     ; 
 
 else:
-    ELSE {insert(false, false, 'K');} body
-    | ENDIF {insert(false, false, 'K');} ';'
+    {JMP(true, 1); printLabel(false, 1);} ELSE {insert(false, false, 'K');} body {printLabel(false, 1); popLabels(2);}
+    | ENDIF {insert(false, false, 'K');} ';' {printLabel(false, 1); popLabels(1);}
     ;
 
 for_body:
@@ -132,7 +161,7 @@ body:
     ; 
 
 for_header:
-    '(' {open_scope();} for_var ';' for_cond ';' for_expr ')' {close_scope();}
+    '(' {open_scope();} for_var ';' { printLabel(true, 1); } for_cond {JZ(true);} ';' for_expr ')' {close_scope();}
 
 type:
     INTTYPE { insert_data_type(); }
@@ -141,21 +170,20 @@ type:
     | FLOATTYPE { insert_data_type(); }
 
 value:
-    BOOLEAN {insert(false, false, 'C');}
-    | INTEGER {insert(false, false, 'C');}
-    | FLOAT {insert(false, false, 'C');}
-    | STRING {insert(false, false, 'C');}
+    BOOLEAN {insert(false, false, 'C'); push();}
+    | INTEGER {insert(false, false, 'C'); push();}
+    | FLOAT {insert(false, false, 'C'); push();}
+    | STRING {insert(false, false, 'C'); push();}
 
 var_definition:
     type VARIABLE {insert(false, false, 'V'); }
-    | CONST type VARIABLE {insert(false, true, 'V'); }
-    | type VARIABLE  {insert(true, false, 'V'); } '=' expr 
-    | CONST type VARIABLE  {insert(true, true, 'V'); } '=' expr
+    | type VARIABLE  {insert(true, false, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]);}
+    | CONST type VARIABLE  {insert(true, true, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]);}
     ;
 
 for_var:
     var_definition
-    | declared_var '=' expr {init_var();}
+    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);}
     |
     ;
 
@@ -165,7 +193,7 @@ for_cond:
     ;
 
 for_expr:
-    declared_var '=' expr {init_var();}
+    declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);}
     |
     ;
 
@@ -184,24 +212,25 @@ case_switch_val:
 
 expr:
     value
-    | NOT expr
-    | expr OR expr 
-    | expr XOR expr
-    | expr AND expr 
-    | expr GE expr 
-    | expr LE expr 
-    | expr EQ expr 
-    | expr NE expr 
-    | expr '+' expr  
-    | expr '-' expr  
-    | expr '*' expr  
-    | expr '/' expr 
-    | expr '%' expr
-    | expr '>' expr
-    | expr '<' expr 
+    | NOT expr {quad1OperandGen("!");}
+    | expr OR  expr {quad2OperandsGen("||");}
+    | expr XOR expr {quad2OperandsGen("^");}
+    | expr AND expr {quad2OperandsGen("&&");}
+    | expr GE  expr {quad2OperandsGen(">=");}
+    | expr LE  expr {quad2OperandsGen("<=");}
+    | expr EQ  expr {quad2OperandsGen("==");}
+    | expr NE  expr {quad2OperandsGen("!=");}
+    | expr '+' expr {quad2OperandsGen("+");}
+    | expr '-' expr {quad2OperandsGen("-");}
+    | expr '*' expr {quad2OperandsGen("*");}
+    | expr '/' expr {quad2OperandsGen("/");}
+    | expr '%' expr {quad2OperandsGen("%");}
+    | expr '>' expr {quad2OperandsGen(">");}
+    | expr '<' expr {quad2OperandsGen("<");}
     | '(' expr ')' 
-    | declared_var {check_initialized(); set_used();}
+    | declared_var {check_initialized(); set_used(); push();}
     ; 
+
 declared_var:
     VARIABLE {check_declaration();}
     ;
@@ -209,8 +238,7 @@ declared_var:
 int sym_table_idx = 0;
 
 void yyerror(char *s) { 
-    fprintf(stderr, "line %d: %s\n", line_num, s);
-    return; 
+    sprintf(errors[error_count++],"Line %d: %s\n",line_num, s);
 } 
 
 int main() {  
@@ -235,6 +263,14 @@ int main() {
 
     for(int i=0;i<error_count;i++) {
         fprintf(fp, "%s", errors[i]);
+    }
+
+    fclose(fp);
+
+    // print quadruples
+    printf("\nQuadruples:\n");
+    for (int i = 0; i < quadCount; i++) {
+        printf("%s\n", quads[i]);
     }
 
     return 0; 
@@ -314,7 +350,6 @@ void printSymbolTable() {
     }
 }
 
-
 void check_declaration() {
     bool error_flag = true;
     bool found = false;
@@ -357,3 +392,100 @@ void set_used() {
         }
     }
 }
+
+void check_const() {
+    int idx = is_duplicated(yytext)-1;
+    if(symbolTable[idx].is_const) {
+        sprintf(errors[error_count++], "Line %d: Variable \"%s\" is a constant\n", line_num, yytext);
+    }
+}
+
+void push() {
+    strcpy(quadStack[quadTop++], yytext);
+    sprintf(quads[quadCount++], "PUSH %s", yytext);
+}
+
+void pushVal(char *val) {
+    strcpy(quadStack[quadTop++], val);
+    sprintf(quads[quadCount++], "PUSH %s", val);
+}
+
+void pop(char *dst) {
+    --quadTop;
+    sprintf(quads[quadCount++], "POP %s", dst);
+}
+
+void quad1OperandGen(char *opr) {
+    char *op1 = strdup(quadStack[quadTop-1]);
+
+    --quadTop; // pop wihtout creating quad
+    
+    char tempReg[10];
+    sprintf(tempReg, "R%d", regCount++);
+    strcpy(quadStack[quadTop++], tempReg);
+    
+    if (strcmp(opr, "!") == 0) sprintf(quads[quadCount++], "NOT %s, %s", op1, quadStack[quadTop-1]);
+
+}
+
+void quad2OperandsGen(char *opr) {
+    char *op1 = strdup(quadStack[quadTop-2]);
+    char *op2 = strdup(quadStack[quadTop-1]);
+
+    --quadTop; // pop wihtout creating quad
+    --quadTop; // pop wihtout creating quad
+    
+    char tempReg[10];
+    sprintf(tempReg, "R%d", regCount++);
+    strcpy(quadStack[quadTop++], tempReg);
+    
+    if (strcmp(opr, "+") == 0)       sprintf(quads[quadCount++], "ADD %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "-") == 0)  sprintf(quads[quadCount++], "SUB %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "*") == 0)  sprintf(quads[quadCount++], "MUL %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "/") == 0)  sprintf(quads[quadCount++], "DIV %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "%") == 0)  sprintf(quads[quadCount++], "MOD %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "<") == 0)  sprintf(quads[quadCount++], "LT %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, ">") == 0)  sprintf(quads[quadCount++], "GT %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "^") == 0)  sprintf(quads[quadCount++], "XOR %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "<=") == 0) sprintf(quads[quadCount++], "LE %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, ">=") == 0) sprintf(quads[quadCount++], "GE %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "==") == 0) sprintf(quads[quadCount++], "EQ %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "!=") == 0) sprintf(quads[quadCount++], "NE %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "&&") == 0) sprintf(quads[quadCount++], "AND %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+    else if (strcmp(opr, "||") == 0) sprintf(quads[quadCount++], "OR %s, %s, %s", op1, op2, quadStack[quadTop-1]);
+}
+
+void popLabels(int num) {
+    labelTop -= num;
+}
+
+void addLabel() {
+    char tempLabel[10];
+    sprintf(tempLabel, "L%d", ++labelCount);
+    strcpy(labelStack[labelTop++], tempLabel);
+}
+
+void JZ(bool addLabelFlag) {
+    if(addLabelFlag) {
+        addLabel();
+    }
+
+    sprintf(quads[quadCount++], "JZ %s", labelStack[labelTop-1]);
+}
+
+void JMP(bool addLabelFlag, int labelOffset) {
+    if(addLabelFlag) {
+        addLabel();
+    }
+
+    sprintf(quads[quadCount++], "JMP %s", labelStack[labelTop-labelOffset]);
+}
+
+void printLabel(bool addLabelFlag, int labelOffset) {
+    if(addLabelFlag) {
+        addLabel();
+    }
+
+    sprintf(quads[quadCount++], "%s:", labelStack[labelTop-labelOffset]);
+}
+    
