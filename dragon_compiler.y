@@ -42,10 +42,24 @@
     void JZ(bool addLabelFlag);
     void JMP(bool addLabelFlag, int labelOffset);
     void printLabel(bool addLabelFlag, int labelOffset);
+
+    // type functions
+    struct nodeType* intNode(); 
+    struct nodeType* floatNode();
+    struct nodeType* boolNode();
+    struct nodeType* stringNode();
+
+    struct nodeType* dupNode(struct nodeType* node, struct nodeType* type);
+
+    struct nodeType* getVarType(char* id);
+
+    struct nodeType* checkType(struct nodeType *op1, struct nodeType *op2, char *op);
+    struct nodeType* checkNotType(struct nodeType *op1);
+    void checkConditionType(struct nodeType* node);
     
     extern int line_num;
 
-    struct  dataType{
+    struct dataType {
         char *name, *value, *dataType;
         char type;
         bool is_initizalized, is_const, is_used;
@@ -55,7 +69,7 @@
     }; 
     struct dataType symbolTable[100];
 
-    char *dtype, *yytext;
+    char *dtype, *yytext, *varType;
     int current_scope_idx = 0, next_scope = 2;
 
     int scopes_stack[100];
@@ -76,6 +90,11 @@
 
     int defualtNumStack[20];
     int defualtNumTop = 0;
+
+    struct nodeType {
+        char *type;              /* type of node */
+        char *expr_type;
+    };
 %}
 
 %union {
@@ -84,6 +103,8 @@
     char *ID;
     float FLT;
     int bval;
+
+    struct nodeType* node_type;
 }
 
 %token <INTGR> INTEGER
@@ -97,8 +118,7 @@
 %token IF ELSE WHILE REPEAT UNTIL FOR PRINT ENDIF
 %token SWITCH CASE DEFAULT BREAK 
 
-/* %nonassoc ENDIF 
-%nonassoc ELSE */
+%type <node_type> expr value declared_var var_definition type
 
 %right "="
 %left XOR
@@ -136,11 +156,11 @@ statement:
     | var_definition ';'
     | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr ';' {init_var(); pop(quadStack[quadTop-2]);}
 
-    | WHILE {insert(false, false, 'K'); printLabel(true, 1); } '(' expr ')' {JZ(true);} body {JMP(false, 2); printLabel(false, 1); popLabels(2);}
-    | REPEAT {insert(false, false, 'K'); printLabel(true, 1); } body UNTIL {insert(false, false, 'K');} '(' expr ')' ';' {JZ(false); popLabels(1);}
+    | WHILE {insert(false, false, 'K'); printLabel(true, 1); } '(' expr ')' {JZ(true);} body {JMP(false, 2); printLabel(false, 1); popLabels(2); checkConditionType($4);}
+    | REPEAT {insert(false, false, 'K'); printLabel(true, 1); } body UNTIL {insert(false, false, 'K');} '(' expr ')' ';' {JZ(false); popLabels(1); checkConditionType($7);}
     | FOR {insert(false, false, 'K');} for_header  for_body { JMP(false, 2); printLabel(false, 1); popLabels(2);}
     
-    | IF {insert(false, false, 'K');} '(' expr ')' {JZ(true);} body else
+    | IF {insert(false, false, 'K');} '(' expr ')' {JZ(true);} body else {checkConditionType($4);}
 
     | BREAK {insert(false, false, 'K');} ';' {JMP(false, 1);}
 
@@ -168,38 +188,32 @@ for_header:
     '(' {open_scope();} for_var ';' { printLabel(true, 1); } for_cond {JZ(true);} ';' for_expr ')' {close_scope();}
 
 type:
-    INTTYPE { insert_data_type(); }
-    | BOOLTYPE { insert_data_type(); }
-    | STRINGTYPE { insert_data_type(); }
-    | FLOATTYPE { insert_data_type(); }
+    INTTYPE { insert_data_type(); $$=intNode();}
+    | BOOLTYPE { insert_data_type(); $$=boolNode();}
+    | STRINGTYPE { insert_data_type(); $$=stringNode();}
+    | FLOATTYPE { insert_data_type(); $$=floatNode();}
 
 value:
-    BOOLEAN {insert(false, false, 'C'); push();}
-    | INTEGER {insert(false, false, 'C'); push();}
-    | FLOAT {insert(false, false, 'C'); push();}
-    | STRING {insert(false, false, 'C'); push();}
+    BOOLEAN {insert(false, false, 'C'); push(); $$=boolNode();}
+    | INTEGER {insert(false, false, 'C'); push(); $$=intNode();}
+    | FLOAT {insert(false, false, 'C'); push(); $$=floatNode();}
+    | STRING {insert(false, false, 'C'); push(); $$=stringNode();}
 
 var_definition:
     type VARIABLE {insert(false, false, 'V'); }
-    | type VARIABLE  {insert(true, false, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]);}
-    | CONST type VARIABLE  {insert(true, true, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]);}
+    | type VARIABLE  {insert(true, false, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]); $$ = dupNode($5, $1);}
+    | CONST type VARIABLE  {insert(true, true, 'V'); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {pop(quadStack[quadTop-2]); $$ = dupNode($6, $2);}
     ;
 
 for_var:
-    var_definition
-    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);}
-    |
-    ;
+    |var_definition
+    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);};
 
 for_cond:
-    expr
-    |
-    ;
+    |expr {checkConditionType($1);};
 
 for_expr:
-    declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]);}
-    |
-    ;
+    |declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr {init_var(); pop(quadStack[quadTop-2]); };
 
 case_list: 
     case_list case_statement
@@ -215,28 +229,28 @@ case_switch_val:
     INTEGER | STRING | BOOLEAN;
 
 expr:
-    value
-    | NOT expr {quad1OperandGen("!");}
-    | expr OR  expr {quad2OperandsGen("||");}
-    | expr XOR expr {quad2OperandsGen("^");}
-    | expr AND expr {quad2OperandsGen("&&");}
-    | expr GE  expr {quad2OperandsGen(">=");}
-    | expr LE  expr {quad2OperandsGen("<=");}
-    | expr EQ  expr {quad2OperandsGen("==");}
-    | expr NE  expr {quad2OperandsGen("!=");}
-    | expr '+' expr {quad2OperandsGen("+");}
-    | expr '-' expr {quad2OperandsGen("-");}
-    | expr '*' expr {quad2OperandsGen("*");}
-    | expr '/' expr {quad2OperandsGen("/");}
-    | expr '%' expr {quad2OperandsGen("%");}
-    | expr '>' expr {quad2OperandsGen(">");}
-    | expr '<' expr {quad2OperandsGen("<");}
-    | '(' expr ')' 
-    | declared_var {check_initialized(); set_used(); push();}
+    value { $$ = $1; }
+    | NOT expr {quad1OperandGen("!"); $$ = checkNotType($2);}
+    | expr OR  expr {quad2OperandsGen("||"); $$ = checkType($1, $3, "||");}
+    | expr XOR expr {quad2OperandsGen("^"); $$ = checkType($1, $3, "^");}
+    | expr AND expr {quad2OperandsGen("&&"); $$ = checkType($1, $3, "&&");}
+    | expr GE  expr {quad2OperandsGen(">="); $$ = checkType($1, $3, ">=");}
+    | expr LE  expr {quad2OperandsGen("<="); $$ = checkType($1, $3, "<=");}
+    | expr EQ  expr {quad2OperandsGen("=="); $$ = checkType($1, $3, "==");}
+    | expr NE  expr {quad2OperandsGen("!="); $$ = checkType($1, $3, "!=");}
+    | expr '+' expr {quad2OperandsGen("+"); $$ = checkType($1, $3, "+");}
+    | expr '-' expr {quad2OperandsGen("-"); $$ = checkType($1, $3, "-");}
+    | expr '*' expr {quad2OperandsGen("*"); $$ = checkType($1, $3, "*");}
+    | expr '/' expr {quad2OperandsGen("/"); $$ = checkType($1, $3, "/");}
+    | expr '%' expr {quad2OperandsGen("%"); $$ = checkType($1, $3, "%");}
+    | expr '>' expr {quad2OperandsGen(">"); $$ = checkType($1, $3, ">");}
+    | expr '<' expr {quad2OperandsGen("<"); $$ = checkType($1, $3, "<");}
+    | '(' expr ')' { $$ = $2; }
+    | declared_var {check_initialized(); set_used(); push(); $$ = $1;}
     ; 
 
 declared_var:
-    VARIABLE {check_declaration();}
+    VARIABLE {check_declaration(); $$ = getVarType(yylval.ID);}
     ;
 %%
 int sym_table_idx = 0;
@@ -279,7 +293,9 @@ int main() {
 
     return 0; 
 }
-
+//------------------------------------------------------------------------------- 
+// Symbol Table functions
+//------------------------------------------------------------------------------- 
 void insert_data_type() {
     dtype=strdup(yytext);
 }
@@ -312,7 +328,6 @@ void insert(bool is_init, bool is_const, char type) {
         sprintf(errors[error_count++], "Line %d: Variable \"%s\" already declared at line %d\n", line_num, yylval.ID, symbolTable[dup_idx-1].line_no);
     }   
 }
-
 
 void init_var() {
     int idx = is_duplicated(yytext)-1;
@@ -354,6 +369,9 @@ void printSymbolTable() {
     }
 }
 
+//------------------------------------------------------------------------------- 
+// Errors checking functions
+//------------------------------------------------------------------------------- 
 void check_declaration() {
     bool error_flag = true;
     bool found = false;
@@ -404,6 +422,17 @@ void check_const() {
     }
 }
 
+void checkDefualtNums() {
+    if(defualtNumStack[defualtNumTop-1] == 0) {
+        sprintf(errors[error_count++], "Line %d: missing default case\n", line_num, yytext);
+    } else if (defualtNumStack[defualtNumTop-1] > 1) {
+        sprintf(errors[error_count++], "Line %d: multiple default cases\n", line_num, yytext);
+    }
+    --defualtNumTop;
+}
+//------------------------------------------------------------------------------- 
+// Quadruple functions
+//-------------------------------------------------------------------------------  
 void push() {
     strcpy(quadStack[quadTop++], yytext);
     sprintf(quads[quadCount++], "PUSH %s", yytext);
@@ -492,12 +521,108 @@ void printLabel(bool addLabelFlag, int labelOffset) {
 
     sprintf(quads[quadCount++], "%s:", labelStack[labelTop-labelOffset]);
 }
+//------------------------------------------------------------------------------- 
+// Type checking functions 
+//-------------------------------------------------------------------------------  
+struct nodeType* intNode() {
+    struct nodeType* p = malloc(sizeof(struct nodeType));;
     
-void checkDefualtNums() {
-    if(defualtNumStack[defualtNumTop-1] == 0) {
-        sprintf(errors[error_count++], "Line %d: missing default case\n", line_num, yytext);
-    } else if (defualtNumStack[defualtNumTop-1] > 1) {
-        sprintf(errors[error_count++], "Line %d: multiple default cases\n", line_num, yytext);
+	p->type = "int";
+    return p;
+}
+
+struct nodeType* floatNode() {
+    struct nodeType* p = malloc(sizeof(struct nodeType));;
+    
+    p->type = "float";
+    return p;
+}
+
+struct nodeType* boolNode() {
+    struct nodeType* p = malloc(sizeof(struct nodeType));;
+    
+    p->type = "bool";
+    return p;
+}
+
+struct nodeType* stringNode() {
+    struct nodeType* p = malloc(sizeof(struct nodeType));;
+    
+    p->type = "string";
+    return p;
+}
+
+struct nodeType* checkType(struct nodeType *op1, struct nodeType *op2, char *op) {
+    if (strcmp(op1->type, op2->type) != 0) {
+        sprintf(errors[error_count++], "Line %d: type mismatch, operation %s cannot be done between %s and %s\n", line_num, op, op1->type, op2->type);
     }
-    --defualtNumTop;
+
+    struct nodeType *p = malloc(sizeof(struct nodeType));
+    
+    if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 || strcmp(op, "*") == 0 || 
+        strcmp(op, "/") == 0 || strcmp(op, "%") == 0 || strcmp(op, "^") == 0) 
+        p->type = op1->type;
+    else 
+        p->type = "bool";
+
+    return p;
+}
+
+struct nodeType* checkNotType(struct nodeType *op1) {
+    if (strcmp(op1->type, "bool") != 0) {
+        sprintf(errors[error_count++], "Line %d: type mismatch, not operation requires bool, not %s \n", line_num, op1->type);
+    }
+
+    struct nodeType *p = malloc(sizeof(struct nodeType));
+    
+    p->type = "bool";
+
+    return p;
+}
+
+struct nodeType* dupNode(struct nodeType* node, struct nodeType* type) {
+
+    if (strcmp(node->type, type->type) != 0) {
+        sprintf(errors[error_count++], "Line %d: type mismatch, assignment cannot be %s to %s\n", line_num, node->type, type->type);
+    }
+
+    struct nodeType *p = malloc(sizeof(struct nodeType));
+    p->type = node->type;
+    return p;
+}
+
+struct nodeType* getVarType(char* id) {
+    bool error_flag = true;
+
+    int i;
+    for(i = sym_table_idx - 1; i >= 0; i--) {
+        if(strcmp(symbolTable[i].name, id) == 0) {
+            for(int j = 0; j <= current_scope_idx && error_flag; j++) {
+                if(symbolTable[i].token_scope == scopes_stack[j]) {
+                    error_flag = false;
+                }
+            }
+        }
+        if (!error_flag) break;
+    }
+
+    struct nodeType *p = malloc(sizeof(struct nodeType));
+
+    if (i < 0) {
+        p->type = "undefined";
+    } else {
+        p->type = symbolTable[i].dataType;
+    }
+    
+    return p;
+}
+
+void checkConditionType(struct nodeType* node) {
+    if (strcmp(node->type, "bool") != 0) {
+        sprintf(errors[error_count++], "Line %d: type mismatch, condition must be bool\n", line_num);
+    }
+
+    struct nodeType *p = malloc(sizeof(struct nodeType));
+    
+    p->type = "bool";
 }
