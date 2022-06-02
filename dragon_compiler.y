@@ -68,28 +68,28 @@
         int par_scopes[10];
         int line_no;
     }; 
-    struct dataType symbolTable[100];
+    struct dataType symbolTable[1000];
 
     char *dtype, *yytext, *varType;
     int current_scope_idx = 0, next_scope = 2;
 
-    int scopes_stack[100];
-    char errors[50][100];
+    int scopes_stack[1000];
+    char errors[500][100];
     int error_count = 0;
 
     int quadTop = 0;
-    char quadStack[100][20];
+    char quadStack[1000][20];
 
-    char quads[100][100];
+    char quads[1000][100];
     int quadCount = 0;
 
     int regCount = 0;
 
     int labelCount = 0;
     int labelTop = 0;
-    char labelStack[100][20];
+    char labelStack[1000][20];
 
-    int defualtNumStack[20];
+    int defualtNumStack[200];
     int defualtNumTop = 0;
 
     struct nodeType {
@@ -288,11 +288,18 @@ int main() {
 
     fclose(fp);
 
-    // print quadruples
-    printf("\nQuadruples:\n");
-    for (int i = 0; i < quadCount; i++) {
-        printf("%s\n", quads[i]);
+    // print quadruples to file
+    FILE *fp2 = fopen("output/quads.txt", "w");
+    if(fp2 == NULL) {
+        printf("Error opening output/quads.txt file!\n");
+        exit(1);
     }
+    
+    for (int i=0; i<quadCount; i++) {
+        fprintf(fp2, "%s\n", quads[i]);
+    }
+    
+    fclose(fp2);
 
     return 0; 
 }
