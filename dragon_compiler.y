@@ -42,6 +42,7 @@
     void JZ(bool addLabelFlag);
     void JMP(bool addLabelFlag, int labelOffset);
     void printLabel(bool addLabelFlag, int labelOffset);
+    void JMPBREAK();
 
     // type functions
     struct nodeType* intNode(); 
@@ -95,6 +96,8 @@
         char *type;              /* type of node */
         char *expr_type;
     };
+
+    char *switchCaseVar = NULL;
 %}
 
 %union {
@@ -162,9 +165,9 @@ statement:
     
     | IF {insert(false, false, 'K');} '(' expr ')' {JZ(true);} body else {checkConditionType($4);}
 
-    | BREAK {insert(false, false, 'K');} ';' {JMP(false, 1);}
+    | BREAK {insert(false, false, 'K');} ';' {JMPBREAK();}
 
-    | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used();} ')' '{' {defualtNumStack[defualtNumTop++]=0;} case_list '}' {checkDefualtNums();}
+    | SWITCH {insert(false, false, 'K');} '(' declared_var {check_initialized(); set_used(); switchCaseVar = strdup(yytext);} ')' '{' {open_scope(); defualtNumStack[defualtNumTop++]=0;} case_list '}' {checkDefualtNums(); close_scope();}
 
     | ';'
     ; 
@@ -221,7 +224,7 @@ case_list:
     ;
 
 case_statement:
-    CASE {insert(false, false, 'K');} case_switch_val ':' body 
+    CASE {insert(false, false, 'K');} case_switch_val {pushVal(switchCaseVar); push(); sprintf(quads[quadCount++], "EQ %s, %s", quadStack[quadTop-2], quadStack[quadTop-1]);} ':' {JZ(true);} body {printLabel(false, 1);}
     | DEFAULT {insert(false, false, 'K');} ':' body {defualtNumStack[defualtNumTop-1]++;}
     ;
 
@@ -340,6 +343,7 @@ void open_scope() {
 }
 
 void close_scope() {
+    sprintf(quads[quadCount++], "B%d:", scopes_stack[current_scope_idx]);
     current_scope_idx --;
 }
 
@@ -512,6 +516,10 @@ void JMP(bool addLabelFlag, int labelOffset) {
     }
 
     sprintf(quads[quadCount++], "JMP %s", labelStack[labelTop-labelOffset]);
+}
+
+void JMPBREAK() {
+    sprintf(quads[quadCount++], "JMP B%d", scopes_stack[current_scope_idx-1]);
 }
 
 void printLabel(bool addLabelFlag, int labelOffset) {
