@@ -8,9 +8,11 @@ frame_size = (int(window_size[0] * 0.90), int(window_size[1] - 20))
 
 # create window with size of 1080x720
 window = tk.Tk()
-window.title("DCC")
-window.configure(background='#E8F9FD')
+window.title("A3E")
+window.configure(background='#2b2d35')
 window.geometry(f"{window_size[0]}x{window_size[1]}")
+
+quads_or_st = "Show Quadruples"
 
 
 def compile_code():
@@ -81,11 +83,37 @@ class LineNumbers(tk.Text):
         self.insert(1.0, line_numbers_string)
         self.configure(state='disabled')
 
+
+def flip_content():
+    global quads_or_st
+    global flip_button
+    global symbol_table_area
+
+    symbol_table_area.config(state='normal')
+    symbol_table_area.delete("1.0", tk.END)
+
+    if quads_or_st == "Show Symbol Table":
+        quads_or_st = "Show Quadruples"
+
+        with open("output/symbol_table.txt", "r") as file:
+            data = file.read()
+
+    else:
+        quads_or_st = "Show Symbol Table"
+
+        with open("output/quads.txt", "r") as file:
+            data = file.read()
+
+    flip_button.config(text=quads_or_st)
+
+    symbol_table_area.insert("1.0", data)
+    symbol_table_area.config(state='disabled')
+
 ##### Widgets #####
 
 
 top_frame = tk.Frame(window, width=frame_size[0], height=frame_size[1],
-                     bg="#E8F9FD", borderwidth=5, relief="flat")
+                     bg="#2b2d35", borderwidth=5, relief="flat")
 
 code_area = tk.Text(top_frame, width=50, height=28,
                     borderwidth=3, relief="ridge")
@@ -94,17 +122,21 @@ symbol_table_area = scrolledtext.ScrolledText(
     top_frame, width=50, height=28, borderwidth=3, relief="ridge", wrap="none")
 
 bottom_frame = tk.Frame(window, width=frame_size[0], height=frame_size[1],
-                        bg="#E8F9FD", borderwidth=5, relief="flat")
+                        bg="#2b2d35", borderwidth=5, relief="flat")
 
-errors_area = tk.Text(bottom_frame, width=50, height=18,
+errors_area = tk.Text(bottom_frame, width=80, height=18,
                       borderwidth=3, relief="ridge")
 
 
-compile_button = tk.Button(bottom_frame, text="Compile", width=10, height=1, fg='#D61C4E', font=("Helvetica", 14),
+compile_button = tk.Button(bottom_frame, text="Compile", width=15, height=1, fg='#2b2d35', font=("Helvetica", 14),
                            command=compile_code)
 
-select_file_button = tk.Button(bottom_frame, text="Select file", width=10, height=1, fg='#D61C4E', font=("Helvetica", 14),
+select_file_button = tk.Button(bottom_frame, text="Select file", width=15, height=1, fg='#2b2d35', font=("Helvetica", 14),
                                command=select_file)
+
+flip_button = tk.Button(bottom_frame, text=quads_or_st, width=15, height=1, fg='#2b2d35', font=("Helvetica", 14),
+                        command=flip_content)
+
 
 ##### Configurations #####
 
@@ -123,7 +155,8 @@ symbol_table_area.pack(side="right", padx=20, pady=30)
 bottom_frame.pack()
 errors_area.pack(side=tk.LEFT, padx=(20, 20), pady=(0, 30))
 select_file_button.pack(side=tk.TOP, pady=(0, 20))
-compile_button.pack(side=tk.TOP)
+compile_button.pack(side=tk.TOP, pady=(0, 20))
+flip_button.pack(side=tk.TOP, pady=(0, 20))
 
 ##### Main loop #####
 
