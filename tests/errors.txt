@@ -1,0 +1,8 @@
+int a = 5;
+int a = 5;
+
+a = a + "string";
+
+b = 5;
+
+bool c;
