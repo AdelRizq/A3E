@@ -1,6 +1,6 @@
 %{
     #include<string.h>
-    #include "dragon_compiler.tab.h"
+    #include "a3e.tab.h"
 
     int line_num=1;
 %}

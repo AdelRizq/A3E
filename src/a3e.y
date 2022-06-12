@@ -121,7 +121,7 @@
 %token IF ELSE WHILE REPEAT UNTIL FOR PRINT ENDIF
 %token SWITCH CASE DEFAULT BREAK 
 
-%type <node_type> expr value declared_var var_definition type
+%type <node_type> expr value declared_var var_definition type statement
 
 %right "="
 %left XOR
@@ -157,7 +157,7 @@ statement:
     PRINT {insert(false, false, 'K');} expr ';' 
 
     | var_definition ';'
-    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr ';' {init_var(); pop(quadStack[quadTop-2]);}
+    | declared_var {check_const(); strcpy(quadStack[quadTop++], yylval.ID);} '=' expr ';' {init_var(); pop(quadStack[quadTop-2]); $$ = dupNode($4, $1);}
 
     | WHILE {insert(false, false, 'K'); printLabel(true, 1); } '(' expr ')' {JZ(true);} body {JMP(false, 2); printLabel(false, 1); popLabels(2); checkConditionType($4);}
     | REPEAT {insert(false, false, 'K'); printLabel(true, 1); } body UNTIL {insert(false, false, 'K');} '(' expr ')' ';' {JZ(false); popLabels(1); checkConditionType($7);}
@@ -173,7 +173,7 @@ statement:
     ; 
 
 else:
-    {JMP(true, 1); printLabel(false, 1);} ELSE {insert(false, false, 'K');} body {printLabel(false, 1); popLabels(2);}
+    {JMP(true, 1); printLabel(false, 2);} ELSE {insert(false, false, 'K');} body {printLabel(false, 1); popLabels(2);}
     | ENDIF {insert(false, false, 'K');} ';' {printLabel(false, 1); popLabels(1);}
     ;
 

@@ -2,4 +2,4 @@
 *.C
 dragon_compiler.dot
 *.output
-*.exe 
+*.h
