@@ -24,10 +24,10 @@ def compile_code():
     with open("code.cpp", "w") as file:
         file.write(code)
 
-    system(f".\src\dragon_compiler < code.cpp")
+    system('"src\\a3e" < code.cpp')
 
     # read src/output/symbol_table.txt file
-    with open("src/output/symbol_table.txt", "r") as file:
+    with open("output/symbol_table.txt", "r") as file:
         symbol_table = file.read()
 
     # display symbol table
@@ -38,7 +38,7 @@ def compile_code():
     symbol_table_area.config(state='disabled')
 
     # read src/output/errors.txt file
-    with open("src/output/errors.txt", "r") as file:
+    with open("output/errors.txt", "r") as file:
         errors = file.read()
 
     # display errors
@@ -95,13 +95,13 @@ def flip_content():
     if quads_or_st == "Show Symbol Table":
         quads_or_st = "Show Quadruples"
 
-        with open("src/output/symbol_table.txt", "r") as file:
+        with open("output/symbol_table.txt", "r") as file:
             data = file.read()
 
     else:
         quads_or_st = "Show Symbol Table"
 
-        with open("src/output/quads.txt", "r") as file:
+        with open("output/quads.txt", "r") as file:
             data = file.read()
 
     flip_button.config(text=quads_or_st)
