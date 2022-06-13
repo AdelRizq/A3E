@@ -25,8 +25,12 @@
 ## About The Project
 
 > **A3E** is a simple programming language compiler similar to C++ built using Flex and Bison and a simple GUI for testing.
-  
-- You can try it using `gui.exe`
+
+## Try it  
+
+- clone/download the repo `git clone https://github.com/AdelRizq/A3E`
+- Open `gui.exe`
+- Select your file and compile
 
 ## Build with
 
@@ -121,6 +125,24 @@ Contributions are what make the open source community such an amazing place to b
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin AmazingFeature-Feat`)
 5. Open a Pull Request
+
+## Contributors
+
+- Thanks goes to these awesome people in the team.
+
+<table>
+  <tr>
+
+<td align="center"><a href="https://github.com/EmanOthman21"  target="_black"><img src="https://avatars.githubusercontent.com/u/47359992?v=4" width="150px;" alt="Eman Othman"/><br /><sub><b>Eman Othman</b></sub></a><br /></td>
+
+<td align="center"><a href="https://github.com/AdelRizq" target="_black"><img src="https://avatars.githubusercontent.com/u/40351413?v=4" width="150px;" alt="Adel Rizq"/><br /><sub><b>Adel Rizq</b></sub></a><br /></td>
+
+<td align="center"><a href="https://github.com/AbdallahHemdan" target="_black"><img src="https://avatars1.githubusercontent.com/u/40190772?s=460&v=4" width="150px;" alt="Abdallah Hemdan"/><br /><sub><b>Abdallah Hemdan</b></sub></a> <br /></td>
+
+<td align="center"><a href="https://github.com/Mahboub99" target="_black"><img src="https://avatars3.githubusercontent.com/u/43186742?s=460&v=4" width="150px;" alt="Ahmed Mahboub"/><br /><sub><b>Ahmed Mahboub</b></sub></a><br /></td>
+
+  </tr>
+ </table>
 
 ## License
 
